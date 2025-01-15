@@ -10,7 +10,7 @@ import (
 
 // def difficulty of mining
 const (
-	difficulty = 2
+	difficulty = 3
 	max_nonce  = math.MaxInt64
 	//max_nonce = 36
 )
@@ -39,7 +39,6 @@ func (pow *ProofOfWork) prepare(nonce int64) []byte {
 }
 
 func (pow *ProofOfWork) Run() ([]byte, int64) {
-
 	var hash_int big.Int
 	var hash [32]byte
 	nonce := int64(0)
@@ -52,7 +51,7 @@ func (pow *ProofOfWork) Run() ([]byte, int64) {
 
 		hash_int.SetBytes(hash[:])
 
-		if pow.Target.Cmp(&hash_int) == 1 {
+		if hash_int.Cmp(pow.Target) == -1 {
 			break
 		}
 		nonce++
