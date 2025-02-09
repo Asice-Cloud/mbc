@@ -28,10 +28,10 @@ func NewProofOfWork(block *Block) *ProofOfWork {
 	return &ProofOfWork{Block: block, Target: target}
 }
 
-func (pow *ProofOfWork) prepare(nonce int64) []byte {
+func (pow *ProofOfWork) prepare(nonce int) []byte {
 	return bytes.Join([][]byte{
 		pow.Block.PrevBlockHash,
-		pow.Block.Data,
+		pow.Block.GetTranscation(),
 		IntToBytes(pow.Block.Timestamp),
 		IntToBytes(int64(difficulty)),
 		IntToBytes(int64(nonce)),
@@ -39,10 +39,10 @@ func (pow *ProofOfWork) prepare(nonce int64) []byte {
 	}, []byte{})
 }
 
-func (pow *ProofOfWork) Run() ([]byte, int64) {
+func (pow *ProofOfWork) Run() ([]byte, int) {
 	var hash_int big.Int
 	var hash [32]byte
-	nonce := int64(0)
+	nonce := 0
 
 	t1 := time.Now()
 	for nonce < max_nonce {
@@ -51,11 +51,24 @@ func (pow *ProofOfWork) Run() ([]byte, int64) {
 
 		hash_int.SetBytes(hash[:])
 
+		//if hash_int < target
 		if hash_int.Cmp(pow.Target) == -1 {
 			break
+		} else {
+			nonce++
 		}
-		nonce++
 	}
-	log.Println(time.Since(t1))
+	log.Println(time.Since(t1), '\n')
 	return hash[:], nonce
+}
+
+func (pow *ProofOfWork) Validate() bool {
+	var hash_int big.Int
+
+	data := pow.prepare(pow.Block.Nonce)
+	hash := sha256.Sum256(data)
+	hash_int.SetBytes(hash[:])
+
+	is_valid := hash_int.Cmp(pow.Target) == -1
+	return is_valid
 }

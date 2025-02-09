@@ -2,61 +2,61 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"strconv"
+	"encoding/gob"
+	"log"
 	"time"
 )
 
 type Block struct {
-	Height int64
-
+	Height        int
 	PrevBlockHash []byte
-
-	Data []byte
-
-	Timestamp int64
-
-	Hash []byte
-
-	Nonce int64
+	Transactions  []*Transaction
+	Timestamp     int64
+	Hash          []byte
+	Nonce         int
 }
 
-func (b *Block) SetupHash() {
-	// second param means n-decimal(2-36)
-	time_string := strconv.FormatInt(b.Timestamp, 2)
-	time_bytes := []byte(time_string)
-
-	height_bytes := IntToBytes(b.Height)
-
-	block_bytes := bytes.Join([][]byte{height_bytes, b.PrevBlockHash, b.Data, time_bytes, b.Hash}, []byte{})
-
-	hash := sha256.Sum256(block_bytes)
-
-	b.Hash = hash[:]
-
-}
-
-// factory method
-func NewBlock(data string, height int64, prevBlockHash []byte) *Block {
-	block := &Block{
-		Height:        height,
-		PrevBlockHash: prevBlockHash,
-		Data:          []byte(data),
-		Timestamp:     time.Now().Unix(),
-		Hash:          nil,
-		Nonce:         0,
-	}
-
-	// through proof of work to judge and get valid hash, nonce
-	pw := NewProofOfWork(block)
-	hash, nonce := pw.Run()
+func NewBlock(transactions []*Transaction, prev_hash []byte, height int) *Block {
+	block := &Block{height, prev_hash, transactions, time.Now().Unix(), []byte{}, 0}
+	pow := NewProofOfWork(block)
+	hash, nonce := pow.Run()
 	block.Hash = hash[:]
 	block.Nonce = nonce
 
 	return block
 }
 
-func GenesisBlock(data string) *Block {
-	return NewBlock(data, 1,
-		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+func NewGenesisBlock(coinbase *Transaction) *Block {
+	return NewBlock([]*Transaction{coinbase}, []byte{}, 0)
+}
+
+func (b *Block) GetTranscation() []byte {
+	var transcations [][]byte
+	for _, tx := range b.Transactions {
+		transcations = append(transcations, tx.Serialize())
+	}
+	ht := NewHashTree(transcations)
+
+	return ht.Root.Data
+}
+
+func (b *Block) Serialize() []byte {
+	var result bytes.Buffer
+	encoder := gob.NewEncoder(&result)
+	err := encoder.Encode(b)
+	if err != nil {
+		log.Panic(err)
+	}
+	return result.Bytes()
+}
+
+func DeserializeBlock(bb []byte) *Block {
+	var block Block
+	decoder := gob.NewDecoder(bytes.NewReader(bb))
+	err := decoder.Decode(&block)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return &block
 }
